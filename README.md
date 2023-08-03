@@ -1,12 +1,11 @@
 # BC BRAT
 
-Tool for generating BRAT projects for British Columbia watersheds.
+Experimental tool for generating BRAT project data for British Columbia watersheds.
 
-Extracts data from:
+	
+## Usage
 
-- Data BC sources (using `bcdata`)
-- value added Freshwater Atlas data hosted at hillcrestgeo.ca
-
+	python bcbrat.py <watershed_feature_id>
 
 
 

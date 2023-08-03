@@ -3,9 +3,13 @@
 import logging
 import sys
 import subprocess
+from urllib.parse import urlencode
 
 import bcdata
-#import requests
+import geopandas as gpd
+import pandas as pd
+import rasterio.warp
+
 #import rsxml
 
 log = logging.getLogger(__name__)
@@ -16,6 +20,25 @@ LOG_FORMAT = "%(asctime)s:%(levelname)s:%(name)s: %(message)s"
 def configure_logging(verbosity):
     log_level = max(10, 30 - 10 * verbosity)
     logging.basicConfig(stream=sys.stderr, level=log_level, format=LOG_FORMAT)
+
+
+def warp_bounds(bounds, crs_source="EPSG:3005", crs_target="EPSG:4326"):
+    xs = bounds[::2]
+    ys = bounds[1::2]
+    xs, ys = rasterio.warp.transform(crs_source, crs_target, xs, ys)
+    xs = [round(v, 5) for v in xs]
+    ys = [round(v, 5) for v in ys]
+    result = [0] * len(bounds)
+    result[::2] = xs
+    result[1::2] = ys
+    return result
+
+
+def define_fwa_request(table, bounds):
+    fwa_url = "https://features.hillcrestgeo.ca/fwa/collections/"
+    param = {"bbox": ",".join([str(b) for b in bounds])}
+    print(fwa_url + f"{table}/" + "items.json?" + urlencode(param, doseq=True))
+    return fwa_url + f"{table}/" + "items.json?" + urlencode(param, doseq=True)
 
 
 configure_logging(1)
@@ -29,6 +52,7 @@ wsd = bcdata.get_data(
     crs="EPSG:3005",
 )
 bounds = list(wsd.total_bounds)
+bounds_ll = warp_bounds(bounds)
 
 # get dem (automatically saved to dem.tif)
 log.info("downloading DEM")
@@ -45,8 +69,38 @@ subprocess.run(
     ]
 )
 
-# download hydrology
+# download hydrology, write to single gpkd
+streams = gpd.read_file(
+    define_fwa_request("whse_basemapping.fwa_stream_networks_sp", bounds_ll)
+)
+if len(streams) > 0:
+    streams.to_file("hydrology.gpkg", driver="GPKG", layer="flow_lines")
 
+rivers = gpd.read_file(
+    define_fwa_request("whse_basemapping.fwa_rivers_poly", bounds_ll)
+)
+if len(rivers) > 0:
+    rivers.to_file("hydrology.gpkg", driver="GPKG", layer="flow_areas")
+
+# combine lakes and reservoirs into a waterbody layer
+lakes = gpd.read_file(
+    define_fwa_request("whse_basemapping.fwa_lakes_poly", bounds_ll)
+)
+reservoirs = gpd.read_file(
+    define_fwa_request("whse_basemapping.fwa_manmade_waterbodies_poly", bounds_ll)
+)
+waterbodies = gpd.GeoDataFrame()
+if len(lakes) > 0 and len(reservoirs) == 0:
+    waterbodies = lakes
+elif len(lakes) == 0 and len(reservoirs) > 0:
+    waterbodies = reservoirs
+elif len(lakes) > 0 and len(reservoirs) > 0:
+    waterbodies = pd.concat([lakes, reservoirs])
+if len(waterbodies) > 0:
+    waterbodies.to_file("hydrology.gpkg", driver="GPKG", layer="waterbodies")
+
+# write watershed boundary
+wsd.to_file("hydrology.gpkg", driver="GPKG", layer="watershed")
 
 # download vector sources that can be directly extracted via bcdata
 for layer in [
@@ -63,3 +117,6 @@ for layer in [
         filename = layername+".gpkg"
         log.info(f"saving {layer} to {filename}")
         df.to_file(filename, driver="GPKG", layer=layername)
+
+
+# create brat package
