@@ -37,8 +37,9 @@ def warp_bounds(bounds, crs_source="EPSG:3005", crs_target="EPSG:4326"):
 def define_fwa_request(table, bounds):
     fwa_url = "https://features.hillcrestgeo.ca/fwa/collections/"
     param = {"bbox": ",".join([str(b) for b in bounds])}
-    print(fwa_url + f"{table}/" + "items.json?" + urlencode(param, doseq=True))
-    return fwa_url + f"{table}/" + "items.json?" + urlencode(param, doseq=True)
+    url = fwa_url + f"{table}/" + "items.json?" + urlencode(param, doseq=True)
+    log.debug(url)
+    return url
 
 
 configure_logging(1)
