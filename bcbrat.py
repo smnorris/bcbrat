@@ -10,7 +10,7 @@ import geopandas as gpd
 import pandas as pd
 import rasterio.warp
 
-#import rsxml
+# import rsxml
 
 log = logging.getLogger(__name__)
 
@@ -83,9 +83,7 @@ if len(rivers) > 0:
     rivers.to_file("hydrology.gpkg", driver="GPKG", layer="flow_areas")
 
 # combine lakes and reservoirs into a waterbody layer
-lakes = gpd.read_file(
-    define_fwa_request("whse_basemapping.fwa_lakes_poly", bounds_ll)
-)
+lakes = gpd.read_file(define_fwa_request("whse_basemapping.fwa_lakes_poly", bounds_ll))
 reservoirs = gpd.read_file(
     define_fwa_request("whse_basemapping.fwa_manmade_waterbodies_poly", bounds_ll)
 )
@@ -107,14 +105,16 @@ for layer in [
     "WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY",
     "WHSE_BASEMAPPING.DRA_DGTL_ROAD_ATLAS_MPAR_SP",
     "WHSE_FOREST_VEGETATION.BEC_BIOGEOCLIMATIC_POLY",
-    "WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP"
+    "WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP",
 ]:
     log.info(f"downloading {layer}")
-    df = bcdata.get_data(layer, as_gdf=True, crs="EPSG:3005", bounds=bounds, bounds_crs="EPSG:3005")
+    df = bcdata.get_data(
+        layer, as_gdf=True, crs="EPSG:3005", bounds=bounds, bounds_crs="EPSG:3005"
+    )
     # save as individual geopackage (if data present)
     if len(df) > 0:
         layername = layer.split(".")[1].lower()
-        filename = layername+".gpkg"
+        filename = layername + ".gpkg"
         log.info(f"saving {layer} to {filename}")
         df.to_file(filename, driver="GPKG", layer=layername)
 
