@@ -73,11 +73,15 @@ subprocess.run(
 
 # download hydrology, write to single gpkd
 streams = gpd.read_file(
-    define_fwa_request("whse_basemapping.fwa_stream_networks_sp", bounds_ll)
+    define_fwa_request("whse_basemapping.fwa_streams_vw", bounds_ll)
 )
+# make streams 2d
 # https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8?permalink_comment_id=4252276#gistcomment-4252276
 _drop_z = lambda geom: wkb.loads(wkb.dumps(geom, output_dimension=2))
 streams.geometry = streams.geometry.transform(_drop_z)
+# convert upstream area to km2
+streams["totdasqkm"] = streams["upstream_area_ha"] * .01
+
 if len(streams) > 0:
     streams.to_file("hydrology.gpkg", driver="GPKG", layer="flow_lines")
 
