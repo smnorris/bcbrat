@@ -1,4 +1,4 @@
-# BRAT BC
+# BC BRAT
 
 Experiment with generating statndardized BRAT projects in BC, using:
 
