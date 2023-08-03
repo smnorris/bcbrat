@@ -1,10 +1,12 @@
 # BC BRAT
 
-Experiment with generating statndardized BRAT projects in BC, using:
+Tool for generating BRAT projects for British Columbia watersheds.
 
-- bcdata
-- fwapg
-- bcfishpass
+Extracts data from:
+
+- Data BC sources (using `bcdata`)
+- value added Freshwater Atlas data hosted at hillcrestgeo.ca
+
 
 
 
