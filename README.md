@@ -7,9 +7,12 @@ Experimental tool for generating BRAT project data for British Columbia watershe
 
 #### Software
 
-`gdal`/`geopandas`/`rasterio` are required - install these to your system (consider using conda), then install the final Python dependencies:
+`gdal`/`geopandas`/`rasterio` are required - install these to your system first. 
 
-`pip install requirements.txt`
+When complete, install the final Python dependencies with `pip`:
+
+	pip install -r requirements.txt
+
 
 #### Services
 
@@ -24,4 +27,9 @@ Data are downloaded from:
 	python bcbrat.py <watershed_feature_id>
 
 
+## Development and testing
 
+	$ mkdir bcbrat_env
+	$ virtualenv bcbrat_env
+	$ source bcbrat_env/bin/activate
+	$ pip install -r requirements.txt
