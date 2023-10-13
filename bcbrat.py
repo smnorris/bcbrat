@@ -1,5 +1,3 @@
-# try and generate a very simple BRAT project
-
 import os
 import subprocess
 from datetime import datetime
@@ -32,14 +30,14 @@ def define_fwa_request(table, bounds):
     return url
 
 
-def build_project(xml_filepath):
+def build_project(wsg):
     log = rsxml.Logger("Project")
 
     # get watershed boundary
-    log.info("downloading watershed boundary")
+    log.info("Downloading watershed group polygon for {wsg}")
     wsd = bcdata.get_data(
-        "WHSE_BASEMAPPING.FWA_ASSESSMENT_WATERSHEDS_POLY",
-        query="WATERSHED_FEATURE_ID=2904",
+        "WHSE_BASEMAPPING.FWA_WATERSHED_GROUPS_POLY",
+        query=f"WATERSHED_GROUP_CODE={wsg}",
         as_gdf=True,
         crs="EPSG:3005",
     )
@@ -52,8 +50,8 @@ def build_project(xml_filepath):
     # with bbox and centroid, define project
     project = Project(
         name="Test Project",
-        proj_path=xml_filepath,
-        project_type="VBET",
+        proj_path="project.rs.xml",
+        project_type="RSContextBC",
         description="This is a test project",
         citation="This is a citation",
         bounds=ProjectBounds(
