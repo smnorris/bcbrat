@@ -1,10 +1,15 @@
+from datetime import datetime
+import getpass
+import json
 import os
 import subprocess
-from datetime import datetime
 from urllib.parse import urlencode
 
 import bcdata
+import click
+from cligj import verbose_opt, quiet_opt
 import geopandas as gpd
+import jsonschema
 import pandas as pd
 import rsxml
 from rsxml.project_xml import (
@@ -22,6 +27,16 @@ from rsxml.project_xml import (
 )
 from shapely import wkb
 
+LOG = rsxml.Logger("Project")
+
+
+def validate_config(config):
+    # is json valid according to schema?
+    with open("config.schema.json", "r") as f:
+        schema = json.load(f)
+    jsonschema.validate(instance=config, schema=schema)
+    LOG.info("Config json is valid")
+
 
 def define_fwa_request(table, bounds):
     fwa_url = "https://features.hillcrestgeo.ca/fwa/collections/"
@@ -30,57 +45,77 @@ def define_fwa_request(table, bounds):
     return url
 
 
-def build_project(wsg):
-    log = rsxml.Logger("Project")
-
-    # get watershed boundary
-    log.info("Downloading watershed group polygon for {wsg}")
+def build_project(config):
+    """
+    Create BC Brat project - datasets and xml - based on provided config
+    """
     wsd = bcdata.get_data(
-        "WHSE_BASEMAPPING.FWA_WATERSHED_GROUPS_POLY",
-        query=f"WATERSHED_GROUP_CODE={wsg}",
+        config["watershed_source"],
+        query=config["watershed_query"],
         as_gdf=True,
         crs="EPSG:3005",
     )
-    bounds = list(wsd.total_bounds)
-    # bounds are required in geographic coordinates for several operations
+    # lat/lon bounds are required, convert watershed gdf geographic coordinates
     wsd_ll = wsd.to_crs("EPSG:4326")
     bounds_ll = list(wsd_ll.total_bounds)
-    centroid_ll = (wsd_ll.centroid.x, wsd_ll.centroid.y)
+    centroid_ll = (wsd_ll.centroid.x[0], wsd_ll.centroid.y[0])
 
-    # with bbox and centroid, define project
+    # initialize the project object
     project = Project(
-        name="Test Project",
-        proj_path="project.rs.xml",
+        name=config["project_name"],
+        proj_path=os.path.join(config["out_path"], "project.rs.xml"),
         project_type="RSContextBC",
-        description="This is a test project",
-        citation="This is a citation",
+        description=config["project_description"],
+        citation=config["project_citation"],
         bounds=ProjectBounds(
             centroid=Coords(centroid_ll[0], centroid_ll[1]),
             bounding_box=BoundingBox(
                 bounds_ll[0], bounds_ll[1], bounds_ll[2], bounds_ll[3]
             ),
-            filepath="project_bounds.json",
+            filepath=os.path.join(config["out_path"], "project_bounds.geojson"),
         ),
         realizations=[
             Realization(
-                xml_id="test",
-                name="Test Realization",
+                xml_id="bcbrat",
+                name=config["realization_name"],
                 product_version="1.0.0",
                 date_created=datetime.today(),
-                summary="This is a test realization",
-                description="This is a test realization",
-                meta_data=MetaData(values=[Meta("Test", "Test Value")]),
+                summary=config["realization_summary"],
+                description=config["realization_description"]
             )
         ],
     )
-    # Now add some metadata
-    project.meta_data.add_meta("Test2", "Test Value 2")
+    # add project level metadata from config
+    for meta in config["meta"]:
+        project.meta_data.add_meta(meta["key"], meta["value"])
+
+    # automatic meta
+    project.meta_data.add_meta("date_created", datetime.today())
+    project.meta_data.add_meta("user", getpass.getuser())
+    project.meta_data.add_meta("script_path", os.path.realpath(__file__))
+
+    # ========================
+    # DEM/Hillshade
+    # ========================
+    LOG.info("downloading DEM")
+    bounds = wsd.bounds
+    bcdata.get_dem(bounds)  # automatically saved to dem.tif
+
+    # compress the dem
+    subprocess.run(
+        [
+            "gdal_translate",
+            "dem.tif",
+            "dem_compressed.tif",
+            "-co",
+            "COMPRESS=LZW"
+        ]
+    )
+    # delete initial dem tiff
+    os.unlink("dem.tif")
+    os.rename("dem_compressed.tif", "dem.tif")
 
     realization = project.realizations[0]
-    # get dem (automatically saved to dem.tif)
-    log.info("downloading DEM")
-    dem = bcdata.get_dem(bounds)
-
     realization.datasets.append(
         Dataset(
             xml_id="dem",
@@ -94,13 +129,16 @@ def build_project(wsg):
     )
 
     # generate simple hillshade with gdaldem
-    log.info("generating hillshade")
+    # modify to compress
+    LOG.info("generating hillshade")
     subprocess.run(
         [
             "gdaldem",
             "hillshade",
             "dem.tif",
             "hillshade.tif",
+            "-co",
+            "COMPRESS=LZW"
         ]
     )
 
@@ -109,31 +147,32 @@ def build_project(wsg):
             xml_id="hillshade",
             name="Hillshade",
             path="hillshade.tif",
-            ds_type="HillShade",
+            ds_type="RASTER",
             ext_ref="",
             summary="25m hillshade",
             description="25m hillshade",
         )
     )
 
-    # create hydrology gpkg
+    # ========================
+    # Hydrology
+    # ========================
+    # create hydrology geopackage
     wsd.to_file("hydrology.gpkg", driver="GPKG", layer="watershed")
-
     hydrology_layers = []
     hydrology_layers.append(
         GeopackageLayer(
             lyr_name="watershed",
             name="watershed",
             ds_type=GeoPackageDatasetTypes.VECTOR,
-            summary="This is a dataset",
-            description="This is a dataset",
-            citation="This is a citation",
-            meta_data=MetaData(values=[Meta("Test", "Test Value")]),
+            summary="Watershed of interest",
+            description=config["watershed_source"] + " WHERE " + config["watershed_query"],
+            citation=config["watershed_citation"]
         )
     )
 
     url = define_fwa_request("whse_basemapping.fwa_streams_vw", bounds_ll)
-    log.debug(url)
+    LOG.debug(url)
     streams = gpd.read_file(url)
     # make streams 2d
     # https://gist.github.com/rmania/8c88377a5c902dfbc134795a7af538d8?permalink_comment_id=4252276#gistcomment-4252276
@@ -214,14 +253,17 @@ def build_project(wsg):
             layers=hydrology_layers,
         )
     )
-    # download vector sources that can be directly extracted via bcdata
+
+    # ========================
+    # Other layers from bcdata
+    # ========================
     for layer in [
         "WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY",
         "WHSE_BASEMAPPING.DRA_DGTL_ROAD_ATLAS_MPAR_SP",
         "WHSE_FOREST_VEGETATION.BEC_BIOGEOCLIMATIC_POLY",
         "WHSE_BASEMAPPING.GBA_RAILWAY_TRACKS_SP",
     ]:
-        log.info(f"downloading {layer}")
+        LOG.info(f"downloading {layer}")
         df = bcdata.get_data(
             layer, as_gdf=True, crs="EPSG:3005", bounds=bounds, bounds_crs="EPSG:3005"
         )
@@ -229,7 +271,7 @@ def build_project(wsg):
         if len(df) > 0:
             layername = layer.split(".")[1].lower()
             filename = layername + ".gpkg"
-            log.info(f"saving {layer} to {filename}")
+            LOG.info(f"saving {layer} to {filename}")
             df.to_file(filename, driver="GPKG", layer=layername)
             realization.datasets.append(
                 Geopackage(
@@ -238,6 +280,7 @@ def build_project(wsg):
                     path=filename,
                     summary=layer,
                     description=layer,
+                    # get metadata/descriptions from bcdata
                     meta_data=MetaData(values=[Meta("Test", "Test Value")]),
                     layers=[
                         GeopackageLayer(
@@ -255,8 +298,25 @@ def build_project(wsg):
 
     # Write xml to disk
     project.write()
+    LOG.info("done")
 
-    log.info("done")
+
+@click.group()
+def cli():
+    pass
 
 
-build_project(os.path.join(os.getcwd(), "project.rs.xml"))
+@cli.command()
+@click.argument(
+    "config_file", type=click.Path(exists=True), required=False, default="config.json"
+)
+@verbose_opt
+@quiet_opt
+def validate(config_file, verbose, quiet):
+    """ensure sources json file is valid, and that data sources exist"""
+    with open(config_file, "r") as f:
+        validate_config(json.load(f))
+
+
+if __name__ == "__main__":
+    cli()

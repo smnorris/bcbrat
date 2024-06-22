@@ -1,0 +1,59 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/smnorris/bcbrat/main/config.schema.json",
+    "title": "Project configuration",
+    "description": "BC BRAT project definition config",
+    "type": "object",
+    "properties": {
+            "watershed_source": {
+                "description": "BCGW table name holding source watershed definition",
+                "type": "string"
+            },
+            "watershed_query": {
+                "description": "Query used to extract watershed of interest from table defined in watershed_source",
+                "type": "string"
+            },
+            "project_name": {
+                "description": "Name of project",
+                "type": "string"
+            },
+            "project_description": {
+                "description": "Description of project",
+                "type": "string"
+            },
+            "project_citation": {
+                "description": "Citation for project",
+                "type": "string"
+            },
+            "realization_description": {
+                "description": "",
+                "type": "string"
+            },
+            "realization_summary": {
+                "description": "",
+                "type": "string"
+            },
+            "realization_description": {
+                "description": "",
+                "type": "string"
+            },
+            "meta": {
+                "description": "Metadata key/value pairs",
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "key": {
+                            "description": "Metadata key",
+                            "type": "string"
+                        },
+                        "value": {
+                            "description": "Metadata value",
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+    },
+    "required": ["watershed_source", "watershed_query", "project_name", "project_description", "project_citation"]
+}

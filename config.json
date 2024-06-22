@@ -1,0 +1,15 @@
+{
+    "watershed_source": "WHSE_BASEMAPPING.FWA_WATERSHED_GROUPS_POLY",
+    "watershed_query": "WATERSHED_GROUP_CODE = 'VICT'",
+    "project_name": "Victoria BRAT",
+    "project_description": "Test BC BRAT project",
+    "project_citation": "",
+    "realization_description": "",
+    "realization_summary": "",
+    "realization_description": "",
+    "meta": [
+        {
+            "watershed name": "Victoria"
+        }
+    ]
+}

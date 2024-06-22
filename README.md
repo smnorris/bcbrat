@@ -24,7 +24,20 @@ Data are downloaded from:
 
 ## Usage
 
-	python bcbrat.py <watershed_feature_id>
+	python bcbrat.py --help
+
+
+Create a BRAT data package and xml project file with minimal/default data, writing/overwriting folder `brat_<watershed_group_code>`:
+
+	python bcbrat.py <watershed_group_code> 
+
+Create a BRAT data package and xml project file with minimal/default data, writing outputs to `my_brat_project`
+
+	python bcbrat.py <watershed_group_code> -o my_brat_project
+
+Create a BRAT data package and xml project file with additional data as defined by `brat.conf`:
+
+	python bcbrat.py <watershed_group_code> -c brat.conf
 
 
 ## Development and testing
@@ -33,3 +46,4 @@ Data are downloaded from:
 	$ virtualenv bcbrat_env
 	$ source bcbrat_env/bin/activate
 	$ pip install -r requirements.txt
+	$ py.test
