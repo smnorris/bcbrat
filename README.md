@@ -24,21 +24,25 @@ Data are downloaded from:
 
 ## Usage
 
-	python bcbrat.py --help
+Create/edit a config file as required, using `config.json` as a guide.
+The key item to change is how the watershed is defined, via the keys `watershed_source` and `watershed_query`. Any data source available through `bcdata` can be used.
+
+Once your config file is ready with the appropriate watershed query, validate the config and the query:
 
 
-Create a BRAT data package and xml project file with minimal/default data, writing/overwriting folder `brat_<watershed_group_code>`:
+	python bcbrat.py --validate
 
-	python bcbrat.py <watershed_group_code> 
+If the file validates successfully, run the job:
 
-Create a BRAT data package and xml project file with minimal/default data, writing outputs to `my_brat_project`
+	python bcbrat.py 
 
-	python bcbrat.py <watershed_group_code> -o my_brat_project
+This will download required data and create a riverscapes project .xml file - all data will be written to a new folder derived from the `project_name` key in the config. Optionally, write to a specified folder:
 
-Create a BRAT data package and xml project file with additional data as defined by `brat.conf`:
+	python bcbrat.py -o my_project
 
-	python bcbrat.py <watershed_group_code> -c brat.conf
+Or specify a config file other than the default:
 
+	python bcbrat.py my_config.json -o my_project
 
 ## Development and testing
 

@@ -35,6 +35,9 @@ def validate_config(config):
     with open("config.schema.json", "r") as f:
         schema = json.load(f)
     jsonschema.validate(instance=config, schema=schema)
+    # todo
+    # - ensure watershed source exists, returns only one record with given query
+    # - ensure all additional layers specified exist and return at least one record
     LOG.info("Config json is valid")
 
 
@@ -257,6 +260,7 @@ def build_project(config):
     # ========================
     # Other layers from bcdata
     # ========================
+    # todo - define these in the config and validate before downloading
     for layer in [
         "WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY",
         "WHSE_BASEMAPPING.DRA_DGTL_ROAD_ATLAS_MPAR_SP",
